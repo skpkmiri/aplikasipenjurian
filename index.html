@@ -312,6 +312,8 @@
         let scoreDraft = { tema: 0, kreativiti: 0, gaya: 0, kekemasan: 0, total: 0 };
         let deleteId = null;
         let isSaving = false;
+        let editId = null;
+        let editDraft = { noGiliran: '', nama: '', kelas: '' };
 
         // Rujukan DOM Element
         const views = {
@@ -429,7 +431,36 @@
                 return;
             }
 
-            tbody.innerHTML = participants.map((p, idx) => `
+            tbody.innerHTML = participants.map((p, idx) => {
+                if (editId === p.id) {
+                    return `
+                    <tr class="border-b border-stone-200 bg-stone-100/80 transition">
+                        <td class="p-3 text-center">
+                            <input type="number" id="edit-no" value="${editDraft.noGiliran}" class="w-full p-2 border border-stone-300 rounded focus:ring-1 focus:ring-[#8b0000] outline-none text-center font-bold" />
+                        </td>
+                        <td class="p-3">
+                            <input type="text" id="edit-nama" value="${editDraft.nama}" class="w-full p-2 border border-stone-300 rounded mb-1 focus:ring-1 focus:ring-[#8b0000] outline-none font-bold" placeholder="Nama Peserta" />
+                            <input type="text" id="edit-kelas" value="${editDraft.kelas || ''}" class="w-full p-2 border border-stone-300 rounded text-xs focus:ring-1 focus:ring-[#8b0000] outline-none" placeholder="Kelas" />
+                        </td>
+                        <td class="p-4 text-center font-semibold text-stone-600">${p.scores?.juri1?.total ?? '-'}</td>
+                        <td class="p-4 text-center font-semibold text-stone-600">${p.scores?.juri2?.total ?? '-'}</td>
+                        <td class="p-4 text-center font-semibold text-stone-600">${p.scores?.juri3?.total ?? '-'}</td>
+                        <td class="p-4 text-center font-semibold text-stone-600">${p.scores?.juri4?.total ?? '-'}</td>
+                        <td class="p-4 text-center font-bold text-xl text-[#8b0000] bg-[#8b0000]/5">${p.totalScore || 0}</td>
+                        <td class="p-4 text-center">
+                            ${p.imageUrl ? `<img src="${p.imageUrl}" class="w-10 h-10 rounded-full object-cover border border-stone-300 shadow-sm mx-auto" />` : `<div class="w-10 h-10 flex items-center justify-center mx-auto text-stone-400"><i class="ph-fill ph-camera text-2xl"></i></div>`}
+                        </td>
+                        <td class="p-3 text-center">
+                            <div class="flex flex-col gap-1 items-center justify-center">
+                                <button class="btn-save-edit bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded shadow-sm font-bold transition w-full" data-id="${p.id}">Simpan</button>
+                                <button class="btn-cancel-edit bg-stone-300 hover:bg-stone-400 text-stone-800 text-xs px-3 py-1.5 rounded shadow-sm font-bold transition w-full">Batal</button>
+                            </div>
+                        </td>
+                    </tr>
+                    `;
+                }
+
+                return `
                 <tr class="border-b border-stone-200 hover:bg-stone-50 transition ${idx % 2 === 0 ? 'bg-white' : 'bg-stone-50/30'}">
                     <td class="p-4 text-center font-bold text-stone-700 bg-stone-100/50">${p.noGiliran}</td>
                     <td class="p-4">
@@ -449,20 +480,62 @@
                         </label>
                     </td>
                     <td class="p-4 text-center">
-                        <button class="btn-delete text-stone-300 hover:text-[#8b0000] transition p-2 hover:bg-[#8b0000]/10 rounded" data-id="${p.id}">
-                            <i class="ph-fill ph-trash text-xl"></i>
-                        </button>
+                        <div class="flex items-center justify-center gap-1">
+                            <button class="btn-edit text-stone-400 hover:text-[#daa520] transition p-2 hover:bg-[#daa520]/10 rounded" data-id="${p.id}">
+                                <i class="ph-fill ph-pencil-simple text-xl"></i>
+                            </button>
+                            <button class="btn-delete text-stone-300 hover:text-[#8b0000] transition p-2 hover:bg-[#8b0000]/10 rounded" data-id="${p.id}">
+                                <i class="ph-fill ph-trash text-xl"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
-        // Pengurusan Event (Padam & Upload Gambar) menggunakan Event Delegation
-        document.addEventListener('click', (e) => {
+        // Pengurusan Event (Padam, Edit & Upload Gambar) menggunakan Event Delegation
+        document.addEventListener('click', async (e) => {
             const deleteBtn = e.target.closest('.btn-delete');
+            const editBtn = e.target.closest('.btn-edit');
+            const saveEditBtn = e.target.closest('.btn-save-edit');
+            const cancelEditBtn = e.target.closest('.btn-cancel-edit');
+
             if (deleteBtn) {
                 deleteId = deleteBtn.dataset.id;
                 document.getElementById('modal-delete').classList.remove('hide-section');
+            }
+            
+            if (editBtn) {
+                const pId = editBtn.dataset.id;
+                const p = participants.find(x => x.id === pId);
+                if (p) {
+                    editId = pId;
+                    editDraft = { noGiliran: p.noGiliran, nama: p.nama, kelas: p.kelas || '' };
+                    renderAdmin();
+                }
+            }
+
+            if (cancelEditBtn) {
+                editId = null;
+                renderAdmin();
+            }
+
+            if (saveEditBtn) {
+                const pId = saveEditBtn.dataset.id;
+                const newNo = document.getElementById('edit-no').value;
+                const newNama = document.getElementById('edit-nama').value;
+                const newKelas = document.getElementById('edit-kelas').value;
+
+                if (newNo && newNama) {
+                    saveEditBtn.innerText = '...';
+                    await updateDoc(doc(db, 'artifacts', firestoreAppId, 'public', 'data', 'participants', pId), {
+                        noGiliran: newNo,
+                        nama: newNama,
+                        kelas: newKelas
+                    });
+                    editId = null;
+                    renderAdmin();
+                }
             }
         });
         
