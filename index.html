@@ -845,21 +845,39 @@
             
             try {
                 const pRef = doc(db, 'artifacts', firestoreAppId, 'public', 'data', 'participants', selectedParticipant.id);
+                // Dapatkan markah juri yang lain TERKINI dari state 'participants' supaya markah mereka tidak terpadam
                 const currentData = participants.find(p => p.id === selectedParticipant.id);
-                const otherScores = { ...(currentData.scores || {}) };
-                otherScores[`juri${judgeNumber}`] = scoreDraft;
+                // Salin markah sedia ada (jika ada), supaya kita hanya update/tambah markah Juri ini sahaja
+                const allScores = currentData.scores ? { ...currentData.scores } : {};
                 
-                // Kira Total Score hanya berdasarkan juri yang aktif (1 hingga judgeCount)
+                // Masukkan markah Juri semasa ke dalam salinan
+                allScores[`juri${judgeNumber}`] = scoreDraft;
+                
+                // Kira Total Score baharu dengan menjumlahkan SEMUA markah juri yang ada dalam salinan
                 let newTotal = 0;
                 for(let i=1; i<=appSettings.judgeCount; i++) {
-                    if(otherScores[`juri${i}`]) { newTotal += (otherScores[`juri${i}`].total || 0); }
+                    if(allScores[`juri${i}`]) { 
+                        newTotal += (allScores[`juri${i}`].total || 0); 
+                    }
                 }
 
-                await updateDoc(pRef, { [`scores.juri${judgeNumber}`]: scoreDraft, totalScore: newTotal });
-                selectedParticipant = null; renderJudge();
-            } catch (err) { console.error(err); }
-            
-            isSaving = false; document.getElementById('btn-submit-score').innerText = 'Hantar';
+                // Gunakan updateDoc untuk HANYA menukar field 'scores' dan 'totalScore' tanpa kacau data lain (seperti nama/gambar)
+                await updateDoc(pRef, { 
+                    scores: allScores, 
+                    totalScore: newTotal 
+                });
+                
+                // Reset paparan borang selepas berjaya simpan
+                selectedParticipant = null; 
+                renderJudge();
+            } catch (err) { 
+                console.error("Ralat menyimpan markah:", err);
+                alert("Maaf, terdapat ralat teknikal semasa menyimpan markah. Sila cuba lagi.");
+            } finally {
+                // Pastikan butang diaktifkan semula walau apa pun yang berlaku
+                isSaving = false; 
+                document.getElementById('btn-submit-score').innerText = 'Hantar';
+            }
         });
 
         function renderGuest() {
