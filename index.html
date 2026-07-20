@@ -43,10 +43,10 @@
         .toggle-checkbox:checked + .toggle-label { background-color: #8b0000; }
     </style>
 </head>
-<body class="flex flex-col relative overflow-hidden text-stone-800 min-h-screen">
+<body class="flex flex-col relative text-stone-800 min-h-screen overflow-x-hidden overflow-y-auto">
 
     <!-- Latar Belakang Corak -->
-    <div class="absolute inset-0 bg-motif pointer-events-none z-0"></div>
+    <div class="fixed inset-0 bg-motif pointer-events-none z-0"></div>
 
     <!-- Amaran Ralat Firebase (Jika ada) -->
     <div id="auth-error-banner" class="hide-section bg-[#8b0000] text-white p-3 text-center text-sm font-bold z-50 relative shadow-md flex items-center justify-center gap-2">
